@@ -2,7 +2,7 @@
 // Color to Greyscale Conversion
 
 //A common way to represent color images is known as RGBA - the color
-//is specified by how much Red, Grean and Blue is in it.
+//is specified by how much Red, Green and Blue is in it.
 //The 'A' stands for Alpha and is used for transparency, it will be
 //ignored in this homework.
 
@@ -41,23 +41,29 @@ typedef unsigned int uint;
 
 __global__
 void rgba_to_greyscale(const uchar4* const rgbaImage,
-					   unsigned char* const greyImage,
-					   int numRows, int numCols)
+                       unsigned char* const greyImage,
+                       int numRows, int numCols)
 {
-	uint i = (blockIdx.x * blockDim.x) + threadIdx.x;
-	uint j = (blockIdx.y * blockDim.y) + threadIdx.y;
-	greyImage[i * j] = rgbaImage[i * j].x * 0.299f + rgbaImage[i * j].y * 0.587f + rgbaImage[i * j].z * 0.114f;
+    uint x = (blockIdx.x * blockDim.x) + threadIdx.x;
+    uint y = (blockIdx.y * blockDim.y) + threadIdx.y;
+
+    if (x < numCols && y < numRows)
+    {
+        // Future Comprehension
+        // Since this is a single dimensional array, we need to multiply the 2D length of the array, how many columns are there.
+        // So if we are on row 1, we need to add the entire number of columns to the index and then add the actual column (in 1D) we are on.
+        uint idx = (y * numCols) + x;
+        greyImage[idx] = rgbaImage[idx].x * 0.299f + rgbaImage[idx].y * 0.587f + rgbaImage[idx].z * 0.114f;
+    }
 }
 
 void your_rgba_to_greyscale(const uchar4 * const h_rgbaImage, uchar4 * const d_rgbaImage,
-							unsigned char* const d_greyImage, size_t numRows, size_t numCols)
+                            unsigned char* const d_greyImage, size_t numRows, size_t numCols)
 {
-	const dim3 threadsPerBlock(8, 8);
-	const dim3 numBlocks(numCols / threadsPerBlock.x + (numCols % threadsPerBlock.x != 0),
-						 numRows / threadsPerBlock.y + (numRows % threadsPerBlock.y != 0));
+    const dim3 threadsPerBlock(32, 32);
+    const dim3 numBlocks((numCols + threadsPerBlock.y) / threadsPerBlock.y + 1, (numRows + threadsPerBlock.x) / threadsPerBlock.x);
 
-	rgba_to_greyscale << <numBlocks, threadsPerBlock >> > (d_rgbaImage, d_greyImage, numRows, numCols);
+    rgba_to_greyscale << <numBlocks, threadsPerBlock >> > (d_rgbaImage, d_greyImage, numRows, numCols);
 
-	cudaDeviceSynchronize(); checkCudaErrors(cudaGetLastError());
-
+    cudaDeviceSynchronize(); checkCudaErrors(cudaGetLastError());
 }
